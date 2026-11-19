@@ -1,0 +1,97 @@
+name: Deploy Server
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-server
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Setup SSH
+        env:
+          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Sync artifacts via rsync
+        env:
+          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          rsync -avz --delete --mkpath \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            dist/ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/var/www/salonbook/server/dist/
+          rsync -avz \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            package.json package-lock.json ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/var/www/salonbook/server/
+          rsync -avz \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            ecosystem.config.js ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/var/www/salonbook/
+
+      - name: Install production deps and reload
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd /var/www/salonbook/server
+            npm ci --omit=dev
+            cd /var/www/salonbook && pm2 startOrReload ecosystem.config.js --only salonbook-server --update-env && pm2 save
+
+      - name: Local health check
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: true
+          script: |
+            for i in {1..10}; do
+              if curl -sf http://127.0.0.1:5000/api/health >/dev/null; then
+                echo "Server health check passed"
+                exit 0
+              fi
+              echo "Attempt $i/10 failed, retrying in 3s..."
+              sleep 3
+            done
+            echo "Server health check failed after 10 attempts"
+            exit 1
+
+      - name: Public health check (non-blocking)
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: false
+          script: |
+            sleep 5
+            if curl -sf https://assignmentnine.oxytumzone.com/api/health >/dev/null; then
+              echo "Public health check passed"
+            else
+              echo "Public health check failed (non-blocking)"
+            fi
