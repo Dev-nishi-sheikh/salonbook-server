@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import { getAuth } from '../config/auth';
 import { User } from '../models';
-import { generateToken } from '../utils/jwt';
 import { asyncHandler } from '../middleware/errorHandler';
 
 const getAuthInstance = () => {
@@ -12,14 +11,10 @@ const getAuthInstance = () => {
 export const register = asyncHandler(async (req: Request, res: Response) => {
   const { name, email, password, image } = req.body;
 
-  const existingUser = await User.findOne({ email });
-  if (existingUser) {
-    return res.status(400).json({ success: false, message: 'Email already registered' });
-  }
-
   const auth = getAuthInstance();
   const result = await auth.api.signUpEmail({
     body: { name, email, password, image },
+    headers: req.headers as any,
   });
 
   if (!result.user) {
@@ -30,12 +25,6 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   if (!user) {
     return res.status(500).json({ success: false, message: 'User creation failed' });
   }
-
-  const token = generateToken({
-    userId: user._id.toString(),
-    email: user.email,
-    role: user.role,
-  });
 
   res.status(201).json({
     success: true,
@@ -52,7 +41,6 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       },
-      token,
     },
   });
 });
@@ -63,6 +51,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   const auth = getAuthInstance();
   const result = await auth.api.signInEmail({
     body: { email, password },
+    headers: req.headers as any,
   });
 
   if (!result.user) {
@@ -77,12 +66,6 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   if (user.isBlocked) {
     return res.status(403).json({ success: false, message: 'Account is blocked' });
   }
-
-  const token = generateToken({
-    userId: user._id.toString(),
-    email: user.email,
-    role: user.role,
-  });
 
   res.json({
     success: true,
@@ -99,7 +82,6 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       },
-      token,
     },
   });
 });
@@ -110,6 +92,7 @@ export const googleAuth = asyncHandler(async (req: Request, res: Response) => {
   const auth = getAuthInstance();
   const result = await auth.api.signInSocial({
     body: { provider: 'google', idToken },
+    headers: req.headers as any,
   });
 
   if (!result.user) {
@@ -134,12 +117,6 @@ export const googleAuth = asyncHandler(async (req: Request, res: Response) => {
     return res.status(403).json({ success: false, message: 'Account is blocked' });
   }
 
-  const token = generateToken({
-    userId: user._id.toString(),
-    email: user.email,
-    role: user.role,
-  });
-
   res.json({
     success: true,
     message: 'Google login successful',
@@ -155,20 +132,22 @@ export const googleAuth = asyncHandler(async (req: Request, res: Response) => {
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       },
-      token,
     },
   });
 });
 
 export const getMe = asyncHandler(async (req: Request, res: Response) => {
-  const authReq = req as any;
-  const user = authReq.user;
+  const auth = getAuthInstance();
+  
+  const session = await auth.api.getSession({
+    headers: req.headers as any,
+  });
 
-  if (!user) {
+  if (!session?.user) {
     return res.status(401).json({ success: false, message: 'Not authenticated' });
   }
 
-  const dbUser = await User.findById(user._id).select('-password');
+  const dbUser = await User.findById(session.user.id).select('-password');
   
   if (!dbUser) {
     return res.status(404).json({ success: false, message: 'User not found' });
@@ -191,15 +170,29 @@ export const getMe = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const logout = asyncHandler(async (req: Request, res: Response) => {
+  const auth = getAuthInstance();
+  
+  await auth.api.signOut({
+    headers: req.headers as any,
+  });
+
   res.json({ success: true, message: 'Logged out successfully' });
 });
 
 export const updateProfile = asyncHandler(async (req: Request, res: Response) => {
-  const authReq = req as any;
-  const user = authReq.user;
+  const auth = getAuthInstance();
+  
+  const session = await auth.api.getSession({
+    headers: req.headers as any,
+  });
+
+  if (!session?.user) {
+    return res.status(401).json({ success: false, message: 'Not authenticated' });
+  }
+
   const { name, image, phone } = req.body;
 
-  const dbUser = await User.findById(user._id);
+  const dbUser = await User.findById(session.user.id);
   if (!dbUser) {
     return res.status(404).json({ success: false, message: 'User not found' });
   }

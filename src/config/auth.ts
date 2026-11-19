@@ -7,11 +7,14 @@ export const initAuth = async () => {
   const { betterAuth } = await import('better-auth');
   const { mongodbAdapter } = await import('better-auth/adapters/mongodb');
   
+  const isProduction = config.nodeEnv === 'production';
+  
   authInstance = betterAuth({
     database: mongodbAdapter(mongoose.connection.db!),
     emailAndPassword: {
       enabled: true,
       minPasswordLength: 6,
+      maxPasswordLength: 128,
       requireEmailVerification: false,
       autoSignIn: true,
     },
@@ -41,10 +44,31 @@ export const initAuth = async () => {
     session: {
       expiresIn: 60 * 60 * 24 * 7,
       updateAge: 60 * 60 * 24,
+      cookieCache: {
+        enabled: true,
+        maxAge: 60 * 5,
+      },
     },
     secret: config.betterAuth.secret,
     baseURL: config.betterAuth.url,
     trustedOrigins: [config.clientUrl],
+    advanced: {
+      crossSubDomainCookies: {
+        enabled: true,
+      },
+      cookies: {
+        session_token: {
+          name: 'session_token',
+          attributes: {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? 'none' : 'lax',
+            path: '/',
+            domain: isProduction ? undefined : undefined,
+          },
+        },
+      },
+    },
   });
   
   return authInstance;

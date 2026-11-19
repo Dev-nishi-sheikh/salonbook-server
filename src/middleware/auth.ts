@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { User, IUser } from '../models';
-import { verifyToken, extractTokenFromHeader } from '../utils/jwt';
+import { getAuth } from '../config/auth';
 import { UserRole, AuthenticatedRequest } from '../types';
 
 export const authenticate = async (
@@ -9,21 +9,19 @@ export const authenticate = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const token = extractTokenFromHeader(req.headers.authorization);
+    const auth = getAuth();
     
-    if (!token) {
+    // Get session from Better Auth using the request headers
+    const session = await auth.api.getSession({
+      headers: req.headers as any,
+    });
+    
+    if (!session?.user) {
       res.status(401).json({ success: false, message: 'Authentication required' });
       return;
     }
 
-    const decoded = verifyToken(token);
-    
-    if (!decoded) {
-      res.status(401).json({ success: false, message: 'Invalid or expired token' });
-      return;
-    }
-
-    const user = await User.findById(decoded.userId).select('-password');
+    const user = await User.findById(session.user.id).select('-password');
     
     if (!user) {
       res.status(401).json({ success: false, message: 'User not found' });
@@ -76,25 +74,26 @@ export const optionalAuth = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const token = extractTokenFromHeader(req.headers.authorization);
+    const auth = getAuth();
     
-    if (token) {
-      const decoded = verifyToken(token);
-      if (decoded) {
-        const user = await User.findById(decoded.userId).select('-password');
-        if (user && !user.isBlocked) {
-          req.user = {
-            _id: user._id.toString(),
-            name: user.name,
-            email: user.email,
-            image: user.image,
-            role: user.role,
-            isBlocked: user.isBlocked,
-            emailVerified: user.emailVerified,
-            createdAt: user.createdAt,
-            updatedAt: user.updatedAt,
-          };
-        }
+    const session = await auth.api.getSession({
+      headers: req.headers as any,
+    });
+    
+    if (session?.user) {
+      const user = await User.findById(session.user.id).select('-password');
+      if (user && !user.isBlocked) {
+        req.user = {
+          _id: user._id.toString(),
+          name: user.name,
+          email: user.email,
+          image: user.image,
+          role: user.role,
+          isBlocked: user.isBlocked,
+          emailVerified: user.emailVerified,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+        };
       }
     }
     next();

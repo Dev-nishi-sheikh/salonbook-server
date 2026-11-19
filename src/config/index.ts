@@ -31,4 +31,7 @@ export const config = {
   },
   
   clientUrl: process.env.CLIENT_URL || 'http://localhost:3000',
+  
+  adminEmail: process.env.ADMIN_EMAIL || '',
+  adminPassword: process.env.ADMIN_PASSWORD || '',
 };
