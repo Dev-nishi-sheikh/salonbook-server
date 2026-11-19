@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodSchema, ZodError } from 'zod';
-import { AuthenticatedRequest } from '../types';
 
 export const validate = (schema: ZodSchema) => {
   return (req: Request, res: Response, next: NextFunction): void => {
@@ -9,7 +8,7 @@ export const validate = (schema: ZodSchema) => {
       next();
     } catch (error) {
       if (error instanceof ZodError) {
-        const messages = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
+        const messages = error.issues.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
         res.status(400).json({ success: false, message: messages });
         return;
       }
@@ -25,7 +24,7 @@ export const validateQuery = (schema: ZodSchema) => {
       next();
     } catch (error) {
       if (error instanceof ZodError) {
-        const messages = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
+        const messages = error.issues.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
         res.status(400).json({ success: false, message: messages });
         return;
       }
@@ -41,7 +40,7 @@ export const validateParams = (schema: ZodSchema) => {
       next();
     } catch (error) {
       if (error instanceof ZodError) {
-        const messages = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
+        const messages = error.issues.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
         res.status(400).json({ success: false, message: messages });
         return;
       }

@@ -10,7 +10,13 @@
     "lint": "eslint src --ext .ts",
     "test": "echo \"No tests specified\" && exit 0"
   },
-  "keywords": ["salon", "booking", "appointment", "express", "mongodb"],
+  "keywords": [
+    "salon",
+    "booking",
+    "appointment",
+    "express",
+    "mongodb"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -33,6 +39,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/morgan": "^1.9.10",
     "@types/multer": "^2.3.0",
     "@types/node": "^26.6.6",
     "ts-node-dev": "^2.0.0",

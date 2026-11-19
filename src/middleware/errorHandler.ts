@@ -22,7 +22,7 @@ export const errorHandler = (
   console.error('Error:', err);
 
   if (err instanceof ZodError) {
-    const messages = err.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
+    const messages = err.issues.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
     res.status(400).json({ success: false, message: messages });
     return;
   }

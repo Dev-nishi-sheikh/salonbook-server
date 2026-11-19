@@ -1,8 +1,8 @@
 import Stripe from 'stripe';
 import { config } from '../config';
 
-const stripe = new Stripe(config.stripe.secretKey, {
-  apiVersion: '2024-04-10',
+const stripe: Stripe = new Stripe(config.stripe.secretKey, {
+  apiVersion: '2024-04-10' as any,
 });
 
 export const createCheckoutSession = async (
@@ -13,7 +13,7 @@ export const createCheckoutSession = async (
   metadata: Record<string, string>
 ): Promise<Stripe.Checkout.Session> => {
   return stripe.checkout.sessions.create({
-    payment_method_types: ['card'],
+    payment_method_types: ['card'] as any,
     line_items: [
       {
         price_data: {
@@ -31,7 +31,7 @@ export const createCheckoutSession = async (
     success_url: successUrl,
     cancel_url: cancelUrl,
     metadata,
-  });
+  } as any);
 };
 
 export const verifyWebhookSignature = (
