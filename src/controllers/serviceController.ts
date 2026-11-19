@@ -55,7 +55,7 @@ export const getServiceCategories = asyncHandler(async (req: Request, res: Respo
 });
 
 export const getServiceById = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new AppError(400, 'Invalid service ID');
@@ -97,7 +97,7 @@ export const createService = asyncHandler(async (req: Request, res: Response) =>
 });
 
 export const updateService = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const updates = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -128,7 +128,7 @@ export const updateService = asyncHandler(async (req: Request, res: Response) =>
 });
 
 export const deleteService = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new AppError(400, 'Invalid service ID');
@@ -144,7 +144,7 @@ export const deleteService = asyncHandler(async (req: Request, res: Response) =>
 });
 
 export const toggleServiceStatus = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new AppError(400, 'Invalid service ID');

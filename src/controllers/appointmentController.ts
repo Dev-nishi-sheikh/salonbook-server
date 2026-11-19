@@ -117,7 +117,7 @@ export const getMyAppointments = asyncHandler(async (req: Request, res: Response
 export const getAppointmentById = asyncHandler(async (req: Request, res: Response) => {
   const authReq = req as any;
   const user = authReq.user;
-  const { id } = req.params;
+  const id = req.params.id as string;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new AppError(400, 'Invalid appointment ID');
@@ -141,7 +141,7 @@ export const getAppointmentById = asyncHandler(async (req: Request, res: Respons
 export const cancelAppointment = asyncHandler(async (req: Request, res: Response) => {
   const authReq = req as any;
   const user = authReq.user;
-  const { id } = req.params;
+  const id = req.params.id as string;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new AppError(400, 'Invalid appointment ID');
@@ -215,7 +215,7 @@ export const getAllAppointments = asyncHandler(async (req: Request, res: Respons
 });
 
 export const updateAppointmentStatus = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const { status } = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {

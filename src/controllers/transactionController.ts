@@ -187,7 +187,7 @@ export const getTransactions = asyncHandler(async (req: Request, res: Response) 
 export const getTransactionById = asyncHandler(async (req: Request, res: Response) => {
   const authReq = req as any;
   const user = authReq.user;
-  const { id } = req.params;
+  const id = req.params.id as string;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new AppError(400, 'Invalid transaction ID');

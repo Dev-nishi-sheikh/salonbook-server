@@ -42,7 +42,7 @@ export const getUsers = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getUserById = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new AppError(400, 'Invalid user ID');
@@ -58,7 +58,7 @@ export const getUserById = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const blockUnblockUser = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const { isBlocked } = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -86,7 +86,7 @@ export const blockUnblockUser = asyncHandler(async (req: Request, res: Response)
 });
 
 export const updateUserRole = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const { role } = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -115,11 +115,11 @@ export const getDashboardStats = asyncHandler(async (req: Request, res: Response
 
   if (user.role === UserRole.CUSTOMER) {
     const [totalAppointments, pending, confirmed, cancelled, totalPayments] = await Promise.all([
-      Appointment.countDocuments({ customerId: user._id }),
-      Appointment.countDocuments({ customerId: user._id, status: 'pending' }),
-      Appointment.countDocuments({ customerId: user._id, status: 'confirmed' }),
-      Appointment.countDocuments({ customerId: user._id, status: 'cancelled' }),
-      Transaction.countDocuments({ customerId: user._id, status: 'paid' }),
+      Appointment.countDocuments({ customerId: user._id } as any),
+      Appointment.countDocuments({ customerId: user._id, status: 'pending' } as any),
+      Appointment.countDocuments({ customerId: user._id, status: 'confirmed' } as any),
+      Appointment.countDocuments({ customerId: user._id, status: 'cancelled' } as any),
+      Transaction.countDocuments({ customerId: user._id, status: 'paid' } as any),
     ]);
 
     return res.json({
@@ -138,9 +138,9 @@ export const getDashboardStats = asyncHandler(async (req: Request, res: Response
     User.countDocuments({ role: UserRole.CUSTOMER }),
     User.countDocuments({ role: UserRole.ADMIN }),
     Appointment.countDocuments(),
-    Appointment.countDocuments({ status: 'pending' }),
-    Appointment.countDocuments({ status: 'confirmed' }),
-    Transaction.countDocuments({ status: 'paid' }),
+    Appointment.countDocuments({ status: 'pending' } as any),
+    Appointment.countDocuments({ status: 'confirmed' } as any),
+    Transaction.countDocuments({ status: 'paid' } as any),
   ]);
 
   res.json({
@@ -157,7 +157,7 @@ export const getDashboardStats = asyncHandler(async (req: Request, res: Response
 });
 
 export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new AppError(400, 'Invalid user ID');

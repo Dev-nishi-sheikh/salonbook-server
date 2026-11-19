@@ -1,9 +1,13 @@
 import { Request, Response } from 'express';
-import { auth } from '../config/auth';
-import { User, IUser } from '../models';
-import { UserRole } from '../types';
+import { getAuth } from '../config/auth';
+import { User } from '../models';
 import { generateToken } from '../utils/jwt';
 import { asyncHandler } from '../middleware/errorHandler';
+
+const getAuthInstance = () => {
+  const auth = getAuth();
+  return auth;
+};
 
 export const register = asyncHandler(async (req: Request, res: Response) => {
   const { name, email, password, image } = req.body;
@@ -13,6 +17,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     return res.status(400).json({ success: false, message: 'Email already registered' });
   }
 
+  const auth = getAuthInstance();
   const result = await auth.api.signUpEmail({
     body: { name, email, password, image },
   });
@@ -55,11 +60,12 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
 export const login = asyncHandler(async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
+  const auth = getAuthInstance();
   const result = await auth.api.signInEmail({
     body: { email, password },
   });
 
-  if (!result.user || !result.session) {
+  if (!result.user) {
     return res.status(401).json({ success: false, message: 'Invalid credentials' });
   }
 
@@ -101,11 +107,12 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
 export const googleAuth = asyncHandler(async (req: Request, res: Response) => {
   const { idToken } = req.body;
 
+  const auth = getAuthInstance();
   const result = await auth.api.signInSocial({
     body: { provider: 'google', idToken },
   });
 
-  if (!result.user || !result.session) {
+  if (!result.user) {
     return res.status(401).json({ success: false, message: 'Google authentication failed' });
   }
 
@@ -184,13 +191,6 @@ export const getMe = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const logout = asyncHandler(async (req: Request, res: Response) => {
-  const authReq = req as any;
-  const sessionToken = authReq.headers.authorization?.replace('Bearer ', '');
-  
-  if (sessionToken) {
-    await auth.api.signOut({ headers: { authorization: `Bearer ${sessionToken}` } });
-  }
-
   res.json({ success: true, message: 'Logged out successfully' });
 });
 
