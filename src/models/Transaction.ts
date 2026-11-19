@@ -18,7 +18,7 @@ const transactionSchema = new Schema<ITransaction>({
   amount: { type: Number, required: true, min: 0 },
   currency: { type: String, required: true, default: 'usd' },
   stripeSessionId: { type: String, required: true, unique: true },
-  status: { type: String, enum: Object.values(TransactionStatus), default: TransactionStatus.PAID },
+  status: { type: String, enum: Object.values(TransactionStatus), required: true },
 }, {
   timestamps: true,
 });

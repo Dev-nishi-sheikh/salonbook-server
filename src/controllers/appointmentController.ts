@@ -41,46 +41,39 @@ export const createAppointment = asyncHandler(async (req: Request, res: Response
     throw new AppError(400, 'Cannot book appointments for past dates');
   }
 
-  const existingAppointment = await Appointment.findOne({
-    customerId: user._id,
-    appointmentDate: appointmentDateObj,
-    timeSlot,
-    status: { $ne: AppointmentStatus.CANCELLED },
-  });
+  try {
+    const appointment = await Appointment.create({
+      serviceId,
+      customerId: user._id,
+      appointmentDate: appointmentDateObj,
+      timeSlot,
+      message,
+      servicePrice: service.price,
+      paymentStatus: PaymentStatus.UNPAID,
+      status: AppointmentStatus.PENDING,
+    });
 
-  if (existingAppointment) {
-    throw new AppError(400, 'You already have an appointment at this time');
+    await appointment.populate('serviceId', 'serviceName category image price duration');
+
+    res.status(201).json({
+      success: true,
+      message: 'Appointment request submitted successfully',
+      data: appointment,
+    });
+  } catch (error: any) {
+    if (error.code === 11000) {
+      // Duplicate key error from unique indexes
+      const keyPattern = error.keyPattern || {};
+      if (keyPattern.serviceId && keyPattern.appointmentDate && keyPattern.timeSlot) {
+        throw new AppError(400, 'This time slot is already booked for the selected service');
+      }
+      if (keyPattern.customerId && keyPattern.appointmentDate && keyPattern.timeSlot) {
+        throw new AppError(400, 'You already have an appointment at this time');
+      }
+      throw new AppError(400, 'Booking conflict: slot already reserved');
+    }
+    throw error;
   }
-
-  const slotTaken = await Appointment.findOne({
-    serviceId,
-    appointmentDate: appointmentDateObj,
-    timeSlot,
-    status: { $ne: AppointmentStatus.CANCELLED },
-  });
-
-  if (slotTaken) {
-    throw new AppError(400, 'This time slot is already booked');
-  }
-
-  const appointment = await Appointment.create({
-    serviceId,
-    customerId: user._id,
-    appointmentDate: appointmentDateObj,
-    timeSlot,
-    message,
-    servicePrice: service.price,
-    paymentStatus: PaymentStatus.UNPAID,
-    status: AppointmentStatus.PENDING,
-  });
-
-  await appointment.populate('serviceId', 'serviceName category image price duration');
-
-  res.status(201).json({
-    success: true,
-    message: 'Appointment request submitted successfully',
-    data: appointment,
-  });
 });
 
 export const getMyAppointments = asyncHandler(async (req: Request, res: Response) => {

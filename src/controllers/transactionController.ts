@@ -102,7 +102,7 @@ export const paymentCancel = asyncHandler(async (req: Request, res: Response) =>
 
 export const stripeWebhook = asyncHandler(async (req: Request, res: Response) => {
   const signature = req.headers['stripe-signature'] as string;
-  
+
   if (!signature) {
     throw new AppError(400, 'Missing stripe signature');
   }
@@ -117,7 +117,7 @@ export const stripeWebhook = asyncHandler(async (req: Request, res: Response) =>
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as any;
-    
+
     if (session.payment_status === 'paid') {
       const appointmentId = session.metadata?.appointmentId;
       const customerId = session.metadata?.customerId;
@@ -125,23 +125,45 @@ export const stripeWebhook = asyncHandler(async (req: Request, res: Response) =>
       const amount = session.amount_total ? session.amount_total / 100 : 0;
       const currency = session.currency;
 
-      if (appointmentId && customerId) {
-        const appointment = await Appointment.findById(appointmentId);
-        
-        if (appointment && appointment.paymentStatus !== PaymentStatus.PAID) {
-          appointment.paymentStatus = PaymentStatus.PAID;
-          appointment.status = AppointmentStatus.CONFIRMED;
-          await appointment.save();
+      if (!appointmentId || !customerId) {
+        console.error('Invalid session metadata:', session.metadata);
+        throw new AppError(400, 'Invalid session metadata');
+      }
 
-          await Transaction.create({
+      if (!mongoose.Types.ObjectId.isValid(appointmentId) || !mongoose.Types.ObjectId.isValid(customerId)) {
+        throw new AppError(400, 'Invalid ID in session metadata');
+      }
+
+      const appointment = await Appointment.findById(appointmentId);
+      if (!appointment) {
+        throw new AppError(404, 'Appointment not found');
+      }
+
+      if (appointment.customerId.toString() !== customerId) {
+        throw new AppError(400, 'Session customer does not match appointment customer');
+      }
+
+      const transaction = await Transaction.findOneAndUpdate(
+        { stripeSessionId },
+        {
+          $setOnInsert: {
             appointmentId,
             customerId,
             amount,
             currency,
             stripeSessionId,
             status: TransactionStatus.PAID,
-          });
-        }
+          },
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+
+      const isNewTransaction = !transaction.wasNew ? false : true;
+
+      if (appointment.paymentStatus !== PaymentStatus.PAID || appointment.status !== AppointmentStatus.CONFIRMED) {
+        appointment.paymentStatus = PaymentStatus.PAID;
+        appointment.status = AppointmentStatus.CONFIRMED;
+        await appointment.save();
       }
     }
   }
@@ -157,7 +179,7 @@ export const getTransactions = asyncHandler(async (req: Request, res: Response) 
   const query: any = user.role === 'admin' ? {} : { customerId: user._id };
 
   const skip = (Number(page) - 1) * Number(limit);
-  
+
   const [transactions, total] = await Promise.all([
     Transaction.find(query)
       .sort({ createdAt: -1 })

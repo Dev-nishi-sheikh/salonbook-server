@@ -33,9 +33,23 @@ appointmentSchema.index({ appointmentDate: 1, timeSlot: 1 });
 appointmentSchema.index({ status: 1 });
 appointmentSchema.index({ createdAt: -1 });
 
+// Service-level slot uniqueness: prevent double-booking same service at same date/time
+// Only pending and confirmed appointments reserve the slot; cancelled appointments do not
 appointmentSchema.index(
-  { customerId: 1, appointmentDate: 1, timeSlot: 1, status: 1 },
-  { unique: true, partialFilterExpression: { status: { $ne: AppointmentStatus.CANCELLED } } }
+  { serviceId: 1, appointmentDate: 1, timeSlot: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { status: { $in: [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED] } }
+  }
+);
+
+// Customer-level slot uniqueness: prevent customer from booking multiple appointments at same time
+appointmentSchema.index(
+  { customerId: 1, appointmentDate: 1, timeSlot: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { status: { $in: [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED] } }
+  }
 );
 
 export const Appointment = mongoose.model<IAppointment>('Appointment', appointmentSchema);
