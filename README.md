@@ -191,7 +191,15 @@ npm start
 - Stripe webhook signature verification
 - No .env files committed to repository
 
+## Live Website
+
+https://assignmentnine.oxytumzone.com
+
+## Repository Links
+
+- **Client Repository**: https://github.com/Dev-nishi-sheikh/salonbook-client
+- **Server Repository**: https://github.com/Dev-nishi-sheikh/salonbook-server
+
 ## License
 
-ISC# CI/CD test Thu Nov 19 21:09:58 +06 2026
-# SSH key fix Thu Nov 19 21:38:35 +06 2026
+ISC
