@@ -2,16 +2,25 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+function requireInProduction(value: string | undefined, name: string): string {
+  if (isProduction && !value) {
+    throw new Error(`Missing required environment variable in production: ${name}`);
+  }
+  return value || '';
+}
+
 export const config = {
   port: parseInt(process.env.PORT || '5000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   
   mongodb: {
-    uri: process.env.MONGODB_URI || 'mongodb://localhost:27017/salonbook',
+    uri: requireInProduction(process.env.MONGODB_URI, 'MONGODB_URI') || 'mongodb://localhost:27017/salonbook',
   },
   
   betterAuth: {
-    secret: process.env.BETTER_AUTH_SECRET || 'dev-secret-key-change-in-production',
+    secret: requireInProduction(process.env.BETTER_AUTH_SECRET, 'BETTER_AUTH_SECRET') || 'dev-secret-key-change-in-production',
     url: process.env.BETTER_AUTH_URL || 'http://localhost:5000',
   },
   
