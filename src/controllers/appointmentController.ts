@@ -20,6 +20,11 @@ export const createAppointment = asyncHandler(async (req: Request, res: Response
   const user = authReq.user;
   const { serviceId, appointmentDate, timeSlot, message } = req.body;
 
+  // Admin users cannot book appointments
+  if (user.role === 'admin') {
+    throw new AppError(403, 'Admin users cannot book appointments');
+  }
+
   if (!mongoose.Types.ObjectId.isValid(serviceId)) {
     throw new AppError(400, 'Invalid service ID');
   }

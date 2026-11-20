@@ -115,6 +115,8 @@ export const stripeWebhook = asyncHandler(async (req: Request, res: Response) =>
     throw new AppError(400, 'Webhook signature verification failed');
   }
 
+  console.log(`Received Stripe webhook: ${event.type}`);
+
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as any;
 
@@ -158,14 +160,55 @@ export const stripeWebhook = asyncHandler(async (req: Request, res: Response) =>
         { upsert: true, new: true, setDefaultsOnInsert: true }
       );
 
-      const isNewTransaction = !transaction.wasNew ? false : true;
-
       if (appointment.paymentStatus !== PaymentStatus.PAID || appointment.status !== AppointmentStatus.CONFIRMED) {
         appointment.paymentStatus = PaymentStatus.PAID;
         appointment.status = AppointmentStatus.CONFIRMED;
         await appointment.save();
       }
     }
+  } else if (event.type === 'checkout.session.expired') {
+    // Stripe checkout session expired - log but do not modify appointment status
+    // Appointment remains unpaid and confirmed; customer can retry payment
+    const session = event.data.object as any;
+    const stripeSessionId = session.id;
+    const appointmentId = session.metadata?.appointmentId;
+
+    console.log(`Checkout session expired: ${stripeSessionId} for appointment ${appointmentId}`);
+
+    // Create or update transaction record with failed status for tracking
+    await Transaction.findOneAndUpdate(
+      { stripeSessionId },
+      { $setOnInsert: { stripeSessionId, status: TransactionStatus.FAILED } },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+  } else if (event.type === 'checkout.session.async_payment_failed') {
+    // Async payment failed - create failed transaction, keep appointment unpaid
+    const session = event.data.object as any;
+    const stripeSessionId = session.id;
+    const appointmentId = session.metadata?.appointmentId;
+
+    if (appointmentId && mongoose.Types.ObjectId.isValid(appointmentId)) {
+      const appointment = await Appointment.findById(appointmentId);
+      if (appointment && appointment.paymentStatus !== PaymentStatus.PAID) {
+        // Keep appointment as unpaid; do not cancel
+        // Customer can retry payment
+      }
+    }
+
+    await Transaction.findOneAndUpdate(
+      { stripeSessionId },
+      { $setOnInsert: { stripeSessionId, status: TransactionStatus.FAILED } },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+  } else if (event.type === 'payment_intent.payment_failed') {
+    const paymentIntent = event.data.object as any;
+    const stripeSessionId = paymentIntent.id;
+
+    await Transaction.findOneAndUpdate(
+      { stripeSessionId },
+      { $setOnInsert: { stripeSessionId, status: TransactionStatus.FAILED } },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
   }
 
   res.json({ received: true });

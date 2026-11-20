@@ -2,10 +2,26 @@ import { Request, Response } from 'express';
 import { getAuth } from '../config/auth';
 import { User } from '../models';
 import { asyncHandler } from '../middleware/errorHandler';
+import { config } from '../config';
+import jwt from 'jsonwebtoken';
+import { JWTPayload, UserRole } from '../types';
 
 const getAuthInstance = () => {
   const auth = getAuth();
   return auth;
+};
+
+const generateAuthToken = (user: any): string => {
+  const payload: Omit<JWTPayload, 'iat' | 'exp'> = {
+    userId: user._id.toString(),
+    email: user.email,
+    role: user.role as UserRole,
+  };
+  return jwt.sign(payload, config.betterAuth.secret, {
+    issuer: config.betterAuth.url,
+    expiresIn: '7d',
+    algorithm: 'HS256',
+  });
 };
 
 export const register = asyncHandler(async (req: Request, res: Response) => {
@@ -26,6 +42,8 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     return res.status(500).json({ success: false, message: 'User creation failed' });
   }
 
+  const token = generateAuthToken(user);
+
   res.status(201).json({
     success: true,
     message: 'Registration successful',
@@ -41,6 +59,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       },
+      token,
     },
   });
 });
@@ -67,6 +86,8 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     return res.status(403).json({ success: false, message: 'Account is blocked' });
   }
 
+  const token = generateAuthToken(user);
+
   res.json({
     success: true,
     message: 'Login successful',
@@ -82,6 +103,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       },
+      token,
     },
   });
 });
@@ -117,6 +139,8 @@ export const googleAuth = asyncHandler(async (req: Request, res: Response) => {
     return res.status(403).json({ success: false, message: 'Account is blocked' });
   }
 
+  const token = generateAuthToken(user);
+
   res.json({
     success: true,
     message: 'Google login successful',
@@ -132,6 +156,7 @@ export const googleAuth = asyncHandler(async (req: Request, res: Response) => {
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       },
+      token,
     },
   });
 });

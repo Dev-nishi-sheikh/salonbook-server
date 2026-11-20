@@ -13,6 +13,7 @@ import transactionRoutes from './routes/transactionRoutes';
 import userRoutes from './routes/userRoutes';
 
 const app = express();
+app.set('trust proxy', 1);
 
 app.use(helmet());
 app.use(cors({
@@ -42,7 +43,7 @@ app.use(errorHandler);
 export const startServer = async (): Promise<void> => {
   await connectDB();
   
-  app.listen(config.port, () => {
+  app.listen(config.port, '0.0.0.0', () => {
     console.log(`Server running on port ${config.port} in ${config.nodeEnv} mode`);
   });
 };
