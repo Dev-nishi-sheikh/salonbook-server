@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { Appointment, Service } from '../models';
+import { Appointment, Service, User } from '../models';
 import { asyncHandler } from '../middleware/errorHandler';
 import { AppError } from '../middleware/errorHandler';
 import { AppointmentStatus, PaymentStatus } from '../types';
@@ -187,11 +187,22 @@ export const getAllAppointments = asyncHandler(async (req: Request, res: Respons
     .populate('customerId', 'name email image');
 
   if (search) {
-    const services = await Service.find({ 
-      $text: { $search: search as string } 
-    }).select('_id');
-    const serviceIds = services.map(s => s._id);
-    query.serviceId = { $in: serviceIds };
+    // The admin UI searches by customer or service, so match both.
+    const term = (search as string).trim();
+    const safe = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const [services, customers] = await Promise.all([
+      Service.find({ $text: { $search: term } }).select('_id'),
+      User.find({
+        $or: [{ name: { $regex: safe, $options: 'i' } }, { email: { $regex: safe, $options: 'i' } }],
+      }).select('_id'),
+    ]);
+
+    const orConditions: any[] = [];
+    if (services.length > 0) orConditions.push({ serviceId: { $in: services.map(s => s._id) } });
+    if (customers.length > 0) orConditions.push({ customerId: { $in: customers.map(c => c._id) } });
+
+    query.$or = orConditions.length > 0 ? orConditions : [{ _id: null }];
+
     appointmentsQuery = Appointment.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
