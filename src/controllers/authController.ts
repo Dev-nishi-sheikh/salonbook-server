@@ -1,15 +1,12 @@
 import { Request, Response } from 'express';
-import { getAuth } from '../config/auth';
+import { ensureAuth } from '../config/auth';
 import { User } from '../models';
 import { asyncHandler } from '../middleware/errorHandler';
 import { config } from '../config';
 import jwt from 'jsonwebtoken';
 import { JWTPayload, UserRole } from '../types';
 
-const getAuthInstance = () => {
-  const auth = getAuth();
-  return auth;
-};
+const getAuthInstance = async () => ensureAuth();
 
 const generateAuthToken = (user: any): string => {
   const payload: Omit<JWTPayload, 'iat' | 'exp'> = {
@@ -27,7 +24,7 @@ const generateAuthToken = (user: any): string => {
 export const register = asyncHandler(async (req: Request, res: Response) => {
   const { name, email, password, image } = req.body;
 
-  const auth = getAuthInstance();
+  const auth = await getAuthInstance();
   const result = await auth.api.signUpEmail({
     body: { name, email, password, image },
     headers: req.headers as any,
@@ -67,7 +64,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
 export const login = asyncHandler(async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
-  const auth = getAuthInstance();
+  const auth = await getAuthInstance();
   const result = await auth.api.signInEmail({
     body: { email, password },
     headers: req.headers as any,
@@ -111,7 +108,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
 export const googleAuth = asyncHandler(async (req: Request, res: Response) => {
   const { idToken } = req.body;
 
-  const auth = getAuthInstance();
+  const auth = await getAuthInstance();
   const result = await auth.api.signInSocial({
     body: { provider: 'google', idToken },
     headers: req.headers as any,
@@ -162,7 +159,7 @@ export const googleAuth = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getMe = asyncHandler(async (req: Request, res: Response) => {
-  const auth = getAuthInstance();
+  const auth = await getAuthInstance();
   
   const session = await auth.api.getSession({
     headers: req.headers as any,
@@ -195,7 +192,7 @@ export const getMe = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const logout = asyncHandler(async (req: Request, res: Response) => {
-  const auth = getAuthInstance();
+  const auth = await getAuthInstance();
   
   await auth.api.signOut({
     headers: req.headers as any,
@@ -205,7 +202,7 @@ export const logout = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const updateProfile = asyncHandler(async (req: Request, res: Response) => {
-  const auth = getAuthInstance();
+  const auth = await getAuthInstance();
   
   const session = await auth.api.getSession({
     headers: req.headers as any,

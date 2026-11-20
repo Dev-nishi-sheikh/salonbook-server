@@ -6,7 +6,7 @@ import { toNodeHandler } from 'better-auth/node';
 import { config } from './config';
 import { connectDB } from './utils/db';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
-import { getAuth, initAuth } from './config/auth';
+import { getAuth, ensureAuth } from './config/auth';
 
 import authRoutes from './routes/authRoutes';
 import serviceRoutes from './routes/serviceRoutes';
@@ -46,13 +46,8 @@ const BETTER_AUTH_PATHS = [
 ];
 
 // Initialised lazily on first auth request (needs the Mongo connection ready).
-let authInitPromise: Promise<void> | null = null;
-const ensureAuth = (): Promise<void> => {
-  if (!authInitPromise) {
-    authInitPromise = initAuth().then(() => undefined);
-  }
-  return authInitPromise;
-};
+// app.use(BETTER_AUTH_PATHS, ...) below resolves the shared initialiser, so a
+// restart cannot leave requests hitting an uninitialised Better Auth instance.
 
 app.use(helmet());
 app.use(cors({

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { User, IUser } from '../models';
-import { getAuth } from '../config/auth';
+import { ensureAuth } from '../config/auth';
 import { config } from '../config';
 import { UserRole, AuthenticatedRequest, JWTPayload } from '../types';
 
@@ -97,7 +97,7 @@ export const authenticate = async (
       return;
     }
 
-    const auth = getAuth();
+    const auth = await ensureAuth();
     const session = await auth.api.getSession({
       headers: req.headers as any,
     });
@@ -196,7 +196,7 @@ export const optionalAuth = async (
       return;
     }
 
-    const auth = getAuth();
+    const auth = await ensureAuth();
     const session = await auth.api.getSession({
       headers: req.headers as any,
     });

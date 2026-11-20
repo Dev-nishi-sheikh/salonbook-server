@@ -2,6 +2,24 @@ import { config } from '../config';
 import mongoose from 'mongoose';
 
 let authInstance: any = null;
+let authInitPromise: Promise<void> | null = null;
+
+/**
+ * Resolves the Better Auth instance, initialising it on first use. Safe to call
+ * from request handlers: concurrent callers share a single initialisation, and a
+ * failed initialisation is not cached so the next request can retry once the
+ * Mongo connection is ready.
+ */
+export const ensureAuth = async () => {
+  if (!authInitPromise) {
+    authInitPromise = initAuth().catch(error => {
+      authInitPromise = null;
+      throw error;
+    });
+  }
+  await authInitPromise;
+  return authInstance;
+};
 
 export const initAuth = async () => {
   const { betterAuth } = await import('better-auth');
