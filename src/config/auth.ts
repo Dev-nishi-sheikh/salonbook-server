@@ -52,6 +52,13 @@ export const initAuth = async () => {
           defaultValue: false,
           input: false,
         },
+        // Stored by the profile endpoint; exposed here so the session payload
+        // (and therefore the client) can read it back after a reload.
+        phone: {
+          type: 'string',
+          required: false,
+          input: false,
+        },
       },
       deleteUser: {
         enabled: true,
