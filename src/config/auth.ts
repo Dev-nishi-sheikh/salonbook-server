@@ -67,9 +67,11 @@ export const initAuth = async () => {
     session: {
       expiresIn: 60 * 60 * 24 * 7,
       updateAge: 60 * 60 * 24,
+      // The cookie cache is disabled so the session always reflects the stored
+      // user record; a cached session would keep returning stale profile fields
+      // (e.g. phone) for the cache lifetime after an update.
       cookieCache: {
-        enabled: true,
-        maxAge: 60 * 5,
+        enabled: false,
       },
     },
     secret: config.betterAuth.secret,
