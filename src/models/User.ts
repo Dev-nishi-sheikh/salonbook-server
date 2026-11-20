@@ -30,4 +30,8 @@ const userSchema = new Schema<IUser>({
 userSchema.index({ email: 1 });
 userSchema.index({ role: 1 });
 
-export const User = mongoose.model<IUser>('User', userSchema);
+// Better Auth's MongoDB adapter stores users in the `user` collection. The app
+// previously read a separate `users` collection, so session lookups and
+// populate() calls could never resolve an authenticated user. Pin the model to
+// the same collection Better Auth writes to.
+export const User = mongoose.models.User || mongoose.model<IUser>('User', userSchema, 'user');
