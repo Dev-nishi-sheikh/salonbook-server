@@ -157,9 +157,14 @@ const seedDemoCustomers = async (password: string) => {
 };
 
 const seedAppointments = async () => {
-  const services = await Service.find({ serviceName: DEMO_SERVICE_NAME_PATTERN }).lean();
+  // Deterministic ordering keeps the customer/service/date/slot mapping stable
+  // across runs, which is what makes re-running the seed a no-op.
+  const services = await Service.find({ serviceName: DEMO_SERVICE_NAME_PATTERN })
+    .sort({ serviceName: 1 })
+    .lean();
   const customers = await User.find({ email: { $regex: '^demo\\.customer\\d+@example\\.com$' } })
     .select('_id email')
+    .sort({ email: 1 })
     .lean();
 
   if (services.length === 0 || customers.length === 0) {
@@ -192,9 +197,8 @@ const seedAppointments = async () => {
 
       const duplicate = await Appointment.exists({
         customerId,
-        serviceId: service._id,
         appointmentDate,
-        timeSlot,
+        message: DEMO_APPOINTMENT_MESSAGE,
       });
       if (duplicate) continue;
 
