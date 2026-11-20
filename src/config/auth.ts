@@ -6,9 +6,7 @@ let authInstance: any = null;
 export const initAuth = async () => {
   const { betterAuth } = await import('better-auth');
   const { mongodbAdapter } = await import('better-auth/adapters/mongodb');
-  
-  const isProduction = config.nodeEnv === 'production';
-  
+
   authInstance = betterAuth({
     database: mongodbAdapter(mongoose.connection.db!),
     emailAndPassword: {
@@ -53,21 +51,13 @@ export const initAuth = async () => {
     baseURL: config.betterAuth.url,
     trustedOrigins: [config.clientUrl],
     advanced: {
-      crossSubDomainCookies: {
-        enabled: true,
-      },
-      cookies: {
-        session_token: {
-          name: 'session_token',
-          attributes: {
-            httpOnly: true,
-            secure: isProduction,
-            sameSite: isProduction ? 'none' : 'lax',
-            path: '/',
-            domain: isProduction ? undefined : undefined,
-          },
-        },
-      },
+      // NOTE: do not override `advanced.cookies.*.name`. Renaming the session
+      // cookie replaces the default `better-auth.session_token` name entirely,
+      // while the session reader only looks for `better-auth.session_token`
+      // (or its `__Secure-` prefixed form). A custom name makes every
+      // `get-session` call resolve to null and logs the user out immediately.
+      // Better Auth derives `secure`/`sameSite`/`path` from baseURL, which is
+      // HTTPS in production and HTTP on localhost.
     },
   });
   

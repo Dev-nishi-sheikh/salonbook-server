@@ -16,7 +16,9 @@ const extractBearerToken = (req: Request): string | null => {
 const extractSessionToken = (req: Request): string | null => {
   const cookies = req.headers.cookie;
   if (cookies) {
-    const tokenMatch = cookies.match(/session_token=([^;]+)/);
+    // Better Auth writes the session cookie as `__Secure-better-auth.session_token`
+    // over HTTPS (plain `better-auth.session_token` on localhost).
+    const tokenMatch = cookies.match(/(?:^|;\s*)(?:__Secure-)?better-auth\.session_token=([^;]+)/);
     if (tokenMatch) {
       return tokenMatch[1];
     }
