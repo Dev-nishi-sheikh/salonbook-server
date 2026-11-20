@@ -307,7 +307,10 @@ export const getTransactionById = asyncHandler(async (req: Request, res: Respons
 });
 
 export const getTransactionStats = asyncHandler(async (req: Request, res: Response) => {
-  const query = req.query.role === 'admin' ? {} : { customerId: (req as any).user._id };
+  const authReq = req as any;
+  // Role comes from the authenticated session, not a client-supplied query param,
+  // otherwise admins saw only their own (empty) totals.
+  const query = authReq.user?.role === 'admin' ? {} : { customerId: authReq.user?._id };
 
   const [total, paid, failed, totalAmount] = await Promise.all([
     Transaction.countDocuments(query),
