@@ -23,8 +23,10 @@ import { SERVICE_CATEGORIES, TIME_SLOTS } from '../constants';
 
 const DEMO_NAME_PREFIX = '[Demo] ';
 const DEMO_APPOINTMENT_MESSAGE = 'Demo appointment (seeded)';
-const DEMO_CUSTOMER_COUNT = 8;
 const DEMO_APPOINTMENT_COUNT = 24;
+
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const DEMO_SERVICE_NAME_PATTERN = new RegExp(`^${escapeRegExp(DEMO_NAME_PREFIX)}`);
 
 interface DemoService {
   serviceName: string;
@@ -155,7 +157,7 @@ const seedDemoCustomers = async (password: string) => {
 };
 
 const seedAppointments = async () => {
-  const services = await Service.find({ serviceName: new RegExp(`^${DEMO_NAME_PREFIX}`) }).lean();
+  const services = await Service.find({ serviceName: DEMO_SERVICE_NAME_PATTERN }).lean();
   const customers = await User.find({ email: { $regex: '^demo\\.customer\\d+@example\\.com$' } })
     .select('_id email')
     .lean();
@@ -251,7 +253,7 @@ const logSummary = async (
   appointments: { created: number; skipped: number }
 ) => {
   const serviceCount = await Service.countDocuments({});
-  const demoServiceCount = await Service.countDocuments({ serviceName: new RegExp(`^${DEMO_NAME_PREFIX}`) });
+  const demoServiceCount = await Service.countDocuments({ serviceName: DEMO_SERVICE_NAME_PATTERN });
   const demoCustomerCount = await User.countDocuments({ email: { $regex: '^demo\\.customer\\d+@example\\.com$' } });
   const demoAppointmentCount = await Appointment.countDocuments({ message: DEMO_APPOINTMENT_MESSAGE });
 
