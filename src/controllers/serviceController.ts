@@ -17,7 +17,9 @@ export const getServices = asyncHandler(async (req: Request, res: Response) => {
     status = ServiceStatus.ACTIVE,
   } = req.query;
 
-  const query: any = { status };
+  // Public listings default to active services; the admin table asks for
+  // status=all so inactive services stay visible and manageable.
+  const query: any = status === 'all' ? {} : { status };
   
   if (search) {
     query.$text = { $search: search as string };

@@ -57,7 +57,7 @@ export const querySchema = z.object({
   sortOrder: z.enum(['asc', 'desc']).optional(),
   // Services use active/inactive, appointments use pending/confirmed/cancelled;
   // the same query validator serves both collections.
-  status: z.enum(['active', 'inactive', 'pending', 'confirmed', 'cancelled']).optional(),
+  status: z.enum(['all', 'active', 'inactive', 'pending', 'confirmed', 'cancelled']).optional(),
   paymentStatus: z.nativeEnum(PaymentStatus).optional(),
 });
 
