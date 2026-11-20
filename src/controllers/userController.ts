@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { User, Appointment, Transaction, Service } from '../models';
 import { asyncHandler } from '../middleware/errorHandler';
 import { AppError } from '../middleware/errorHandler';
-import { UserRole } from '../types';
+import { UserRole, ServiceStatus } from '../types';
 import mongoose from 'mongoose';
 
 export const getUsers = asyncHandler(async (req: Request, res: Response) => {
@@ -136,7 +136,7 @@ export const getDashboardStats = asyncHandler(async (req: Request, res: Response
 
   const [totalCustomers, totalServices, totalAppointments, pendingAppointments, confirmedAppointments, successfulPayments] = await Promise.all([
     User.countDocuments({ role: UserRole.CUSTOMER }),
-    Service.countDocuments(),
+    Service.countDocuments({ status: ServiceStatus.ACTIVE }),
     Appointment.countDocuments(),
     Appointment.countDocuments({ status: 'pending' } as any),
     Appointment.countDocuments({ status: 'confirmed' } as any),

@@ -6,6 +6,7 @@ export interface IUser extends Document {
   email: string;
   password?: string;
   image?: string;
+  phone?: string;
   role: UserRole;
   isBlocked: boolean;
   emailVerified: boolean;
@@ -19,6 +20,7 @@ const userSchema = new Schema<IUser>({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   password: { type: String, select: false },
   image: { type: String },
+  phone: { type: String, trim: true },
   role: { type: String, enum: Object.values(UserRole), default: UserRole.CUSTOMER },
   isBlocked: { type: Boolean, default: false },
   emailVerified: { type: Boolean, default: false },

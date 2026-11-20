@@ -100,6 +100,62 @@ export const paymentCancel = asyncHandler(async (req: Request, res: Response) =>
   });
 });
 
+/**
+ * Records a failed checkout for an appointment using the appointment's own stored
+ * price, so the transaction always satisfies the required schema fields. If the
+ * appointment (or its metadata) cannot be resolved, nothing is written rather
+ * than storing an incomplete transaction.
+ */
+const recordFailedTransaction = async (session: any, reason: string): Promise<void> => {
+  const appointmentId = session?.metadata?.appointmentId;
+  const customerId = session?.metadata?.customerId;
+  const stripeSessionId = session?.id;
+
+  if (!stripeSessionId) {
+    console.warn(`Cannot record failed transaction (${reason}): missing session id`);
+    return;
+  }
+
+  if (!appointmentId || !customerId) {
+    console.warn(`Cannot record failed transaction (${reason}): missing appointment/customer metadata for ${stripeSessionId}`);
+    return;
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(appointmentId) || !mongoose.Types.ObjectId.isValid(customerId)) {
+    console.warn(`Cannot record failed transaction (${reason}): invalid metadata for ${stripeSessionId}`);
+    return;
+  }
+
+  const appointment = await Appointment.findById(appointmentId);
+  if (!appointment) {
+    console.warn(`Cannot record failed transaction (${reason}): appointment ${appointmentId} not found`);
+    return;
+  }
+
+  if (appointment.customerId.toString() !== customerId) {
+    console.warn(`Cannot record failed transaction (${reason}): customer mismatch for ${stripeSessionId}`);
+    return;
+  }
+
+  await Transaction.findOneAndUpdate(
+    { stripeSessionId },
+    {
+      $setOnInsert: {
+        appointmentId,
+        customerId,
+        amount: appointment.servicePrice,
+        currency: session.currency || 'usd',
+        stripeSessionId,
+        status: TransactionStatus.FAILED,
+      },
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  // A failed/expired checkout must never mark the appointment paid.
+  console.log(`Recorded failed transaction for ${stripeSessionId} (${reason}); appointment stays unpaid`);
+};
+
 export const stripeWebhook = asyncHandler(async (req: Request, res: Response) => {
   const signature = req.headers['stripe-signature'] as string;
 
@@ -167,48 +223,21 @@ export const stripeWebhook = asyncHandler(async (req: Request, res: Response) =>
       }
     }
   } else if (event.type === 'checkout.session.expired') {
-    // Stripe checkout session expired - log but do not modify appointment status
-    // Appointment remains unpaid and confirmed; customer can retry payment
+    // Checkout expired: the appointment stays unpaid and the customer may retry.
+    // A failed transaction is recorded only when the appointment can be resolved,
+    // so no incomplete document (appointmentId/customerId/amount are required).
     const session = event.data.object as any;
-    const stripeSessionId = session.id;
-    const appointmentId = session.metadata?.appointmentId;
-
-    console.log(`Checkout session expired: ${stripeSessionId} for appointment ${appointmentId}`);
-
-    // Create or update transaction record with failed status for tracking
-    await Transaction.findOneAndUpdate(
-      { stripeSessionId },
-      { $setOnInsert: { stripeSessionId, status: TransactionStatus.FAILED } },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
+    await recordFailedTransaction(session, 'checkout session expired');
   } else if (event.type === 'checkout.session.async_payment_failed') {
-    // Async payment failed - create failed transaction, keep appointment unpaid
+    // Async payment failed: keep the appointment unpaid, record a failed transaction.
     const session = event.data.object as any;
-    const stripeSessionId = session.id;
-    const appointmentId = session.metadata?.appointmentId;
-
-    if (appointmentId && mongoose.Types.ObjectId.isValid(appointmentId)) {
-      const appointment = await Appointment.findById(appointmentId);
-      if (appointment && appointment.paymentStatus !== PaymentStatus.PAID) {
-        // Keep appointment as unpaid; do not cancel
-        // Customer can retry payment
-      }
-    }
-
-    await Transaction.findOneAndUpdate(
-      { stripeSessionId },
-      { $setOnInsert: { stripeSessionId, status: TransactionStatus.FAILED } },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
+    await recordFailedTransaction(session, 'async payment failed');
   } else if (event.type === 'payment_intent.payment_failed') {
+    // A PaymentIntent carries no appointment metadata and its id is not a checkout
+    // session id, so no transaction can be created without fabricating required
+    // fields. Log only; the appointment is untouched.
     const paymentIntent = event.data.object as any;
-    const stripeSessionId = paymentIntent.id;
-
-    await Transaction.findOneAndUpdate(
-      { stripeSessionId },
-      { $setOnInsert: { stripeSessionId, status: TransactionStatus.FAILED } },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
+    console.log(`PaymentIntent failed: ${paymentIntent.id} (no appointment metadata to record)`);
   }
 
   res.json({ received: true });
