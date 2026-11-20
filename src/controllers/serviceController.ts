@@ -79,6 +79,10 @@ export const createService = asyncHandler(async (req: Request, res: Response) =>
     imageUrl = await uploadBufferToImgBB(req.file.buffer);
   }
 
+  if (!imageUrl) {
+    throw new AppError(400, 'An image file or a valid image URL is required');
+  }
+
   const service = await Service.create({
     serviceName,
     category,
@@ -98,21 +102,22 @@ export const createService = asyncHandler(async (req: Request, res: Response) =>
 
 export const updateService = asyncHandler(async (req: Request, res: Response) => {
   const id = req.params.id as string;
-  const updates = req.body;
+  const updates: Record<string, unknown> = { ...req.body };
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new AppError(400, 'Invalid service ID');
   }
 
-  let imageUrl = updates.image;
-  
   if (req.file) {
-    imageUrl = await uploadBufferToImgBB(req.file.buffer);
+    updates.image = await uploadBufferToImgBB(req.file.buffer);
+  } else if (!updates.image) {
+    // Keep the stored image when the admin edits without supplying a new one.
+    delete updates.image;
   }
 
   const service = await Service.findByIdAndUpdate(
     id,
-    { ...updates, image: imageUrl || updates.image },
+    updates,
     { new: true, runValidators: true }
   );
 

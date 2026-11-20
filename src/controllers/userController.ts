@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { User, Appointment, Transaction } from '../models';
+import { User, Appointment, Transaction, Service } from '../models';
 import { asyncHandler } from '../middleware/errorHandler';
 import { AppError } from '../middleware/errorHandler';
 import { UserRole } from '../types';
@@ -136,7 +136,7 @@ export const getDashboardStats = asyncHandler(async (req: Request, res: Response
 
   const [totalCustomers, totalServices, totalAppointments, pendingAppointments, confirmedAppointments, successfulPayments] = await Promise.all([
     User.countDocuments({ role: UserRole.CUSTOMER }),
-    User.countDocuments({ role: UserRole.ADMIN }),
+    Service.countDocuments(),
     Appointment.countDocuments(),
     Appointment.countDocuments({ status: 'pending' } as any),
     Appointment.countDocuments({ status: 'confirmed' } as any),

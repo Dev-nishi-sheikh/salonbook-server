@@ -129,7 +129,12 @@ export const getAppointmentById = asyncHandler(async (req: Request, res: Respons
     throw new AppError(404, 'Appointment not found');
   }
 
-  if (appointment.customerId.toString() !== user._id && user.role !== 'admin') {
+  // customerId is populated above, so compare against the populated document's id
+  // (a populated Mongoose document stringifies to an inspection string, not an id).
+  const ownerId =
+    (appointment.customerId as any)?._id?.toString() ?? appointment.customerId?.toString();
+
+  if (ownerId !== user._id.toString() && user.role !== 'admin') {
     throw new AppError(403, 'Not authorized to view this appointment');
   }
 
