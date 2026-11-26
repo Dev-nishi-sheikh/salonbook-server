@@ -2,7 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import { toNodeHandler } from 'better-auth/node';
 import { config } from './config';
 import { connectDB } from './utils/db';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
@@ -61,9 +60,17 @@ app.use(morgan('dev'));
 app.use('/api/transactions/webhook', express.raw({ type: 'application/json' }));
 
 // Better Auth needs the raw request body, so it is mounted before express.json().
+// Static reference for @vercel/nft bundler so better-auth/node is included in the serverless bundle.
+if (false as boolean) {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require('better-auth/node');
+}
 app.use(BETTER_AUTH_PATHS, (req, res) => {
-  ensureAuth()
-    .then(() => toNodeHandler(getAuth())(req, res))
+  Promise.all([
+    ensureAuth(),
+    Function('s', 'return import(s)')('better-auth/node') as Promise<{ toNodeHandler: (auth: any) => any }>,
+  ])
+    .then(([auth, { toNodeHandler }]) => toNodeHandler(auth)(req, res))
     .catch((err) => {
       // eslint-disable-next-line no-console
       console.error('Better Auth handler failed:', err);
@@ -88,34 +95,5 @@ app.use('/api/users', userRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
-
-let isShuttingDown = false;
-const gracefulShutdown = async (signal: string) => {
-  if (isShuttingDown) return;
-  isShuttingDown = true;
-  console.log(`${signal} received. Graceful shutdown...`);
-  try {
-    await disconnectDB();
-    console.log('Shutdown complete');
-    process.exit(0);
-  } catch (error) {
-    console.error('Shutdown error:', error);
-    process.exit(1);
-  }
-};
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
-export const startServer = async (): Promise<void> => {
-  await connectDB();
-  
-  app.listen(config.port, '0.0.0.0', () => {
-    console.log(`Server running on port ${config.port} in ${config.nodeEnv} mode`);
-  });
-};
-
-if (require.main === module) {
-  startServer().catch(console.error);
-}
 
 export default app;

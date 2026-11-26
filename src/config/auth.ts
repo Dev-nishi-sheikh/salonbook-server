@@ -22,8 +22,36 @@ export const ensureAuth = async () => {
 };
 
 export const initAuth = async () => {
-  const { betterAuth } = await import('better-auth');
-  const { mongodbAdapter } = await import('better-auth/adapters/mongodb');
+  // Static references for @vercel/nft bundler so better-auth and its dependencies are bundled.
+  if (false as boolean) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require('better-auth');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require('better-auth/adapters/mongodb');
+  }
+  const dynamicImport = (s: string) => Function('specifier', 'return import(specifier)')(s);
+  const { betterAuth } = await dynamicImport('better-auth');
+  const { mongodbAdapter } = await dynamicImport('better-auth/adapters/mongodb');
+
+  // Validate required production environment variables
+  if (!config.google.clientId || !config.google.clientSecret) {
+    throw new Error('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are required');
+  }
+  if (!config.betterAuth.secret || config.betterAuth.secret.length < 32) {
+    throw new Error('BETTER_AUTH_SECRET must be at least 32 characters');
+  }
+  if (!config.mongodb.uri) {
+    throw new Error('MONGODB_URI is required');
+  }
+  if (!config.betterAuth.url) {
+    throw new Error('BETTER_AUTH_URL is required');
+  }
+
+  // Parse trusted origins from CLIENT_URL (comma-separated)
+  const trustedOrigins = config.clientUrl
+    .split(',')
+    .map((u: string) => u.trim())
+    .filter(Boolean);
 
   authInstance = betterAuth({
     database: mongodbAdapter(mongoose.connection.db!),
@@ -76,15 +104,12 @@ export const initAuth = async () => {
     },
     secret: config.betterAuth.secret,
     baseURL: config.betterAuth.url,
-    trustedOrigins: [config.clientUrl],
+    trustedOrigins,
     advanced: {
-      // NOTE: do not override `advanced.cookies.*.name`. Renaming the session
-      // cookie replaces the default `better-auth.session_token` name entirely,
-      // while the session reader only looks for `better-auth.session_token`
-      // (or its `__Secure-` prefixed form). A custom name makes every
-      // `get-session` call resolve to null and logs the user out immediately.
-      // Better Auth derives `secure`/`sameSite`/`path` from baseURL, which is
-      // HTTPS in production and HTTP on localhost.
+      defaultCookieAttributes: {
+        sameSite: config.nodeEnv === 'production' ? 'none' : 'lax',
+        secure: config.nodeEnv === 'production',
+      },
     },
   });
   

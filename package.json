@@ -9,7 +9,8 @@
     "start": "node dist/app.js",
     "lint": "eslint src --ext .ts",
     "test": "echo \"No tests specified\" && exit 0",
-    "seed:admin": "ts-node --transpile-only src/scripts/seedAdmin.ts"
+    "seed:admin": "ts-node --transpile-only src/scripts/seedAdmin.ts",
+    "vercel-build": "npm run build"
   },
   "keywords": [
     "salon",
