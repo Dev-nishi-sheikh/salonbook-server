@@ -159,37 +159,32 @@ export const googleAuth = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getMe = asyncHandler(async (req: Request, res: Response) => {
-  const auth = await getAuthInstance();
-
-  const session = await auth.api.getSession({
-    headers: req.headers as any,
-  });
-
-  if (!session?.user) {
-    return res.status(401).json({ success: false, message: 'Not authenticated' });
+  // `authenticate` middleware already verified the JWT / session and set req.user.
+  // Use it directly so this endpoint works for both JWT (Bearer) and cookie auth.
+  const authReq = req as any;
+  if (authReq.user) {
+    const dbUser = await User.findById(authReq.user._id).select('-password');
+    if (!dbUser) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    return res.json({
+      success: true,
+      data: {
+        _id: dbUser._id,
+        name: dbUser.name,
+        email: dbUser.email,
+        image: dbUser.image,
+        phone: (dbUser as any).phone,
+        role: dbUser.role,
+        isBlocked: dbUser.isBlocked,
+        emailVerified: dbUser.emailVerified,
+        createdAt: dbUser.createdAt,
+        updatedAt: dbUser.updatedAt,
+      },
+    });
   }
 
-  const dbUser = await User.findById(session.user.id).select('-password');
-
-  if (!dbUser) {
-    return res.status(404).json({ success: false, message: 'User not found' });
-  }
-
-  res.json({
-    success: true,
-    data: {
-      _id: dbUser._id,
-      name: dbUser.name,
-      email: dbUser.email,
-      image: dbUser.image,
-      phone: dbUser.phone,
-      role: dbUser.role,
-      isBlocked: dbUser.isBlocked,
-      emailVerified: dbUser.emailVerified,
-      createdAt: dbUser.createdAt,
-      updatedAt: dbUser.updatedAt,
-    },
-  });
+  return res.status(401).json({ success: false, message: 'Not authenticated' });
 });
 
 export const logout = asyncHandler(async (req: Request, res: Response) => {
