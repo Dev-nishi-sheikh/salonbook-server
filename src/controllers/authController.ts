@@ -119,7 +119,7 @@ export const googleAuth = asyncHandler(async (req: Request, res: Response) => {
   }
 
   let user = await User.findById(result.user.id);
-  
+
   if (!user) {
     user = await User.findOne({ email: result.user.email });
     if (user) {
@@ -160,7 +160,7 @@ export const googleAuth = asyncHandler(async (req: Request, res: Response) => {
 
 export const getMe = asyncHandler(async (req: Request, res: Response) => {
   const auth = await getAuthInstance();
-  
+
   const session = await auth.api.getSession({
     headers: req.headers as any,
   });
@@ -170,7 +170,7 @@ export const getMe = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const dbUser = await User.findById(session.user.id).select('-password');
-  
+
   if (!dbUser) {
     return res.status(404).json({ success: false, message: 'User not found' });
   }
@@ -194,7 +194,7 @@ export const getMe = asyncHandler(async (req: Request, res: Response) => {
 
 export const logout = asyncHandler(async (req: Request, res: Response) => {
   const auth = await getAuthInstance();
-  
+
   await auth.api.signOut({
     headers: req.headers as any,
   });
@@ -204,7 +204,7 @@ export const logout = asyncHandler(async (req: Request, res: Response) => {
 
 export const updateProfile = asyncHandler(async (req: Request, res: Response) => {
   const auth = await getAuthInstance();
-  
+
   const session = await auth.api.getSession({
     headers: req.headers as any,
   });
@@ -241,5 +241,29 @@ export const updateProfile = asyncHandler(async (req: Request, res: Response) =>
       createdAt: dbUser.createdAt,
       updatedAt: dbUser.updatedAt,
     },
+  });
+});
+
+export const getToken = asyncHandler(async (req: Request, res: Response) => {
+  const auth = await getAuthInstance();
+
+  const session = await auth.api.getSession({
+    headers: req.headers as any,
+  });
+
+  if (!session?.user) {
+    return res.status(401).json({ success: false, message: 'Not authenticated' });
+  }
+
+  const user = await User.findById(session.user.id).select('-password');
+  if (!user || user.isBlocked) {
+    return res.status(401).json({ success: false, message: 'User not found or blocked' });
+  }
+
+  const token = generateAuthToken(user);
+
+  res.json({
+    success: true,
+    data: { token },
   });
 });

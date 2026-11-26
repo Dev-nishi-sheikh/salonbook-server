@@ -50,8 +50,9 @@ const BETTER_AUTH_PATHS = [
 // restart cannot leave requests hitting an uninitialised Better Auth instance.
 
 app.use(helmet());
+const allowedOrigins = config.clientUrl.split(',').map((u: string) => u.trim());
 app.use(cors({
-  origin: config.clientUrl,
+  origin: allowedOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -87,6 +88,23 @@ app.use('/api/users', userRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
+
+let isShuttingDown = false;
+const gracefulShutdown = async (signal: string) => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  console.log(`${signal} received. Graceful shutdown...`);
+  try {
+    await disconnectDB();
+    console.log('Shutdown complete');
+    process.exit(0);
+  } catch (error) {
+    console.error('Shutdown error:', error);
+    process.exit(1);
+  }
+};
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 export const startServer = async (): Promise<void> => {
   await connectDB();
